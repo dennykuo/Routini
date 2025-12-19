@@ -1,0 +1,30 @@
+{
+    "name": "dennykuo/routini",
+    "description": "A lightweight, Laravel-like routing package for PHP.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Denny Kuo"
+        }
+    ],
+    "require-dev": {
+        "pestphp/pest": "^4.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Routini\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    }
+}

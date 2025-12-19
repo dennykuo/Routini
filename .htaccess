@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # 1. 如果請求的是真實存在的檔案或目錄，直接讀取該檔案 (不經過 index.php)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+
+    # 2. 其他所有請求，全部轉發給 index.php
+    RewriteRule ^ index.php [L]
+</IfModule>

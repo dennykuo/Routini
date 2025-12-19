@@ -1,0 +1,228 @@
+<?php
+
+namespace Routini;
+
+class Router
+{
+    protected $routes = [];
+
+    // 用來儲存當前群組設定的堆疊 (支援巢狀群組)
+    protected $groupStack = [];
+
+    /**
+     * 處理群組邏輯
+     */
+    public function group(array $attributes, callable $routes)
+    {
+        // 1. 將目前的屬性推入堆疊
+        $this->groupStack[] = $attributes;
+
+        // 2. 執行閉包 (這時候裡面定義的路由會抓到 stack 裡的設定)
+        call_user_func($routes, $this);
+
+        // 3. 執行完畢，將屬性彈出堆疊 (恢復上一層狀態)
+        array_pop($this->groupStack);
+    }
+
+    /**
+     * 加入路由至集合 (已修改以支援群組)
+     */
+    public function add($method, $uri, $action)
+    {
+        // 1. 取得目前所有的群組屬性 (Prefix, Middleware)
+        $attributes = $this->mergeGroupAttributes();
+
+        // 2. 合併 Prefix
+        // 如果有前綴，拼接到 URI 前面
+        if (isset($attributes['prefix'])) {
+            $uri = rtrim($attributes['prefix'], '/') . '/' . ltrim($uri, '/');
+        }
+
+        // 3. 處理 HTTP Methods
+        if ($method === 'ANY') {
+            $methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
+        } else {
+            $methods = (array) $method;
+        }
+
+        // 4. 建立路由物件
+        $route = new RouteItem($methods, $uri, $action);
+
+        // [新增] 設定名稱前綴
+        if (isset($attributes['name'])) {
+            $route->setGroupPrefix($attributes['name']);
+        }
+
+        // 4. 合併 Middleware
+        if (isset($attributes['middleware'])) {
+            $route->middleware($attributes['middleware']);
+        }
+
+        // [新增] 設定網域
+        if (isset($attributes['domain'])) {
+            $route->domain = $attributes['domain'];
+        }
+
+        $this->routes[] = $route;
+        return $route;
+    }
+
+    /**
+     * 計算當前堆疊中的所有屬性 (合併巢狀群組)
+     */
+    protected function mergeGroupAttributes()
+    {
+        $final = ['prefix' => '', 'middleware' => [], 'name' => ''];
+
+        foreach ($this->groupStack as $group) {
+            // 合併前綴
+            if (isset($group['prefix'])) {
+                $final['prefix'] .= '/' . trim($group['prefix'], '/');
+            }
+
+            // 合併中間件
+            if (isset($group['middleware'])) {
+                $middleware = is_array($group['middleware']) ? $group['middleware'] : [$group['middleware']];
+                $final['middleware'] = array_merge($final['middleware'], $middleware);
+            }
+
+            // 合併名稱前綴
+            if (isset($group['name'])) {
+                $final['name'] .= $group['name'];
+            }
+
+            // 合併網域 (後蓋前)
+            if (isset($group['domain'])) {
+                $final['domain'] = $group['domain'];
+            }
+        }
+
+        return $final;
+    }
+
+    // --- 以下為之前的核心邏輯 (未修改) ---
+
+    public function dispatch($requestUri, $requestMethod, $requestHost = null)
+    {
+        $requestUri = parse_url($requestUri, PHP_URL_PATH);
+        $requestMethod = strtoupper($requestMethod);
+        $requestHost = $requestHost ?? $_SERVER['HTTP_HOST'] ?? null;
+
+        foreach ($this->routes as $route) {
+            if (!in_array($requestMethod, $route->methods)) continue;
+
+            // 檢查網域限制
+            if ($route->domain && $route->domain !== $requestHost) {
+                continue;
+            }
+
+            if ($this->matchUri($route, $requestUri)) return $this->runRoute($route);
+        }
+
+        $this->sendNotFound();
+    }
+
+    /**
+     * [新增] 根據名稱產生網址
+     * @param string $name 路由名稱
+     * @param array $parameters 參數 ['id' => 1]
+     * @return string
+     */
+    public function url($name, $parameters = [])
+    {
+        // 1. 尋找對應名稱的路由
+        $route = $this->findRouteByName($name);
+
+        if (!$route) {
+            throw new \Exception("Route [{$name}] not defined.");
+        }
+
+        // 2. 替換 URI 中的參數
+        $uri = $route->uri;
+
+        foreach ($parameters as $key => $value) {
+            // 檢查 URI 中是否有 {key}
+            if (strpos($uri, '{' . $key . '}') !== false || strpos($uri, '{' . $key . '?}') !== false) {
+                // 替換 {key} 為實際值
+                $uri = str_replace('{' . $key . '}', $value, $uri);
+                // 處理選填參數的情況 {key?}
+                $uri = str_replace('{' . $key . '?}', $value, $uri);
+
+                // 用過的參數從陣列中移除，剩下的要變成 Query String
+                unset($parameters[$key]);
+            }
+        }
+
+        // 清理未替換的選填參數 (例如 /user/{id?} -> /user)
+        $uri = preg_replace('/\/\{[a-zA-Z0-9_]+\?\}/', '', $uri);
+
+        // 3. 處理剩餘參數變成 Query String (例如 ?sort=desc)
+        if (!empty($parameters)) {
+            $uri .= '?' . http_build_query($parameters);
+        }
+
+        return $uri;
+    }
+
+    /**
+     * [新增] 輔助方法：依名稱搜尋路由
+     */
+    protected function findRouteByName($name)
+    {
+        foreach ($this->routes as $route) {
+            if ($route->name === $name) {
+                return $route;
+            }
+        }
+        return null;
+    }
+
+    protected function matchUri(RouteItem $route, $requestUri)
+    {
+        // 1. 先處理選填參數 {param?}
+        // 將 /{param?} 轉換為 (?:/(?P<param>[^/]+))?
+        // 這裡假設選填參數前通常會有一個斜線
+        $pattern = preg_replace('/\/{([a-zA-Z0-9_]+)\?\}/', '(?:/(?P<\1>[^/]+))?', $route->uri);
+
+        // 2. 處理必填參數 {param}
+        $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[^/]+)', $pattern);
+
+        $pattern = "~^" . $pattern . "$~";
+
+        if (preg_match($pattern, $requestUri, $matches)) {
+            $route->parameters = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
+            return true;
+        }
+        return false;
+    }
+
+    protected function runRoute(RouteItem $route)
+    {
+        foreach ($route->middlewares as $middleware) {
+            if (is_callable($middleware)) {
+                if ($middleware() === false) return;
+            } elseif (class_exists($middleware)) {
+                $instance = new $middleware();
+                if (method_exists($instance, 'handle')) {
+                    if ($instance->handle() === false) return;
+                }
+            }
+        }
+
+        if (is_callable($route->action)) {
+            return call_user_func_array($route->action, $route->parameters);
+        }
+
+        if (is_array($route->action)) {
+            [$controller, $method] = $route->action;
+            $instance = new $controller();
+            return call_user_func_array([$instance, $method], $route->parameters);
+        }
+    }
+
+    protected function sendNotFound()
+    {
+        header("HTTP/1.0 404 Not Found");
+        echo "404 - 找不到頁面";
+    }
+}
