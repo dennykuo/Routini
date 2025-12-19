@@ -1,6 +1,10 @@
 # TODO
 
+[] README.md 中針對 controller 及 middleware 的說明
+
 ## Package Name
+
+目前使用 Routini，下面為備選方案
 
 - Laroute
 - Routie - 可愛暱稱化
@@ -13,3 +17,4 @@
 - Ruty - 可愛短音
 - Lanie - lane 可愛化
 - Pathy - path 暱稱化
+

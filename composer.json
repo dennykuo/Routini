@@ -8,6 +8,9 @@
             "name": "Denny Kuo"
         }
     ],
+    "require": {
+        "php": ">=8.0"
+    },
     "require-dev": {
         "pestphp/pest": "^4.2"
     },
