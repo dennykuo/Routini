@@ -83,6 +83,19 @@ class Response
     }
 
     /**
+     * 建立帶有新 Header 的回應副本（不可變方法）
+     *
+     * 這對於中介軟體鏈很重要，因為每層都可以安全地修改回應
+     * 而不影響其他層
+     */
+    public function withHeader(string $name, string $value): self
+    {
+        $clone = clone $this;
+        $clone->headers[$name] = $value;
+        return $clone;
+    }
+
+    /**
      * 批次設定 Headers
      */
     public function setHeaders(array $headers): self

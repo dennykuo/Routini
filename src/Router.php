@@ -6,6 +6,7 @@ use Routini\Http\Request;
 use Routini\Http\Response;
 use Routini\Contracts\RouteMatcherInterface;
 use Routini\Matching\RegexMatcher;
+use Routini\Middleware\MiddlewarePipeline;
 
 class Router
 {
@@ -17,6 +18,9 @@ class Router
     // 路由匹配器
     protected RouteMatcherInterface $matcher;
 
+    // 全域中介軟體陣列
+    protected array $globalMiddlewares = [];
+
     /**
      * 建構函式
      *
@@ -25,6 +29,18 @@ class Router
     public function __construct(?RouteMatcherInterface $matcher = null)
     {
         $this->matcher = $matcher ?? new RegexMatcher();
+    }
+
+    /**
+     * 註冊全域中介軟體
+     *
+     * @param mixed $middleware 中介軟體（MiddlewareInterface、類別名稱或 callable）
+     * @return $this
+     */
+    public function middleware($middleware): self
+    {
+        $this->globalMiddlewares[] = $middleware;
+        return $this;
     }
 
     /**
@@ -277,40 +293,40 @@ class Router
      */
     protected function runRoute(RouteItem $route, Request $request): Response
     {
-        // 執行中介軟體（舊版簡化方式）
+        // 建立中介軟體管道
+        $pipeline = new MiddlewarePipeline();
+
+        // 1. 先加入全域中介軟體
+        foreach ($this->globalMiddlewares as $middleware) {
+            $pipeline->pipe($middleware);
+        }
+
+        // 2. 再加入路由特定的中介軟體
         foreach ($route->middlewares as $middleware) {
-            if (is_callable($middleware)) {
-                if ($middleware() === false) {
-                    // 中介軟體已自行處理輸出，返回空回應
-                    return new Response('', 403);
-                }
-            } elseif (class_exists($middleware)) {
-                $instance = new $middleware();
-                if (method_exists($instance, 'handle')) {
-                    if ($instance->handle() === false) {
-                        // 中介軟體已自行處理輸出，返回空回應
-                        return new Response('', 403);
-                    }
-                }
+            $pipeline->pipe($middleware);
+        }
+
+        // 3. 定義最終的路由處理器（管道的核心）
+        $destination = function (Request $request) use ($route) {
+            // 將關聯陣列參數轉換為索引陣列，避免 PHP 8+ 具名參數問題
+            $params = array_values($route->parameters);
+
+            $result = null;
+
+            if (is_callable($route->action)) {
+                $result = call_user_func_array($route->action, $params);
+            } elseif (is_array($route->action)) {
+                [$controller, $method] = $route->action;
+                $instance = new $controller();
+                $result = call_user_func_array([$instance, $method], $params);
             }
-        }
 
-        // 執行路由動作
-        $result = null;
+            // 將結果轉換為 Response
+            return $this->toResponse($result);
+        };
 
-        // 將關聯陣列參數轉換為索引陣列，避免 PHP 8+ 具名參數問題
-        $params = array_values($route->parameters);
-
-        if (is_callable($route->action)) {
-            $result = call_user_func_array($route->action, $params);
-        } elseif (is_array($route->action)) {
-            [$controller, $method] = $route->action;
-            $instance = new $controller();
-            $result = call_user_func_array([$instance, $method], $params);
-        }
-
-        // 將結果轉換為 Response
-        return $this->toResponse($result);
+        // 4. 執行管道（洋蔥模式）
+        return $pipeline->process($request, $destination);
     }
 
     /**
