@@ -10,7 +10,8 @@ use Routini\Middleware\MiddlewarePipeline;
 
 class Router
 {
-    protected $routes = [];
+    // 路由集合（負責儲存和管理路由）
+    protected RouteCollection $routes;
 
     // 用來儲存當前群組設定的堆疊 (支援巢狀群組)
     protected $groupStack = [];
@@ -25,10 +26,12 @@ class Router
      * 建構函式
      *
      * @param RouteMatcherInterface|null $matcher 路由匹配器（可選，預設使用 RegexMatcher）
+     * @param RouteCollection|null $routes 路由集合（可選，預設建立新集合）
      */
-    public function __construct(?RouteMatcherInterface $matcher = null)
+    public function __construct(?RouteMatcherInterface $matcher = null, ?RouteCollection $routes = null)
     {
         $this->matcher = $matcher ?? new RegexMatcher();
+        $this->routes = $routes ?? new RouteCollection();
     }
 
     /**
@@ -97,7 +100,7 @@ class Router
             $route->domain = $attributes['domain'];
         }
 
-        $this->routes[] = $route;
+        $this->routes->add($route);
         return $route;
     }
 
@@ -172,7 +175,7 @@ class Router
         $requestMethod = $request->getMethod();
         $requestHost = $request->getHost();
 
-        foreach ($this->routes as $route) {
+        foreach ($this->routes->all() as $route) {
             if (!in_array($requestMethod, $route->methods)) {
                 continue;
             }
@@ -240,12 +243,7 @@ class Router
      */
     protected function findRouteByName($name)
     {
-        foreach ($this->routes as $route) {
-            if ($route->name === $name) {
-                return $route;
-            }
-        }
-        return null;
+        return $this->routes->findByName($name);
     }
 
     /**
