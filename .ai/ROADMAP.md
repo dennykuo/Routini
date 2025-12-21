@@ -35,6 +35,7 @@
 ### 5. 速率限制 (Rate Limiting)
 - **Status**: ❌ Pending
 - **Description**: 為路由增加 Throttle 中介軟體。
+
 ### 6. 依賴注入 (Dependency Injection)
 - **Status**: ❌ Pending
 - **Description**: 支援控制器方法的依賴注入 (不限於路由模型綁定)。
