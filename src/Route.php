@@ -41,4 +41,12 @@ class Route
     {
         return self::getInstance()->dispatch($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
     }
+
+    /**
+     * 重置路由器實例（主要用於測試）
+     */
+    public static function reset(): void
+    {
+        self::$instance = null;
+    }
 }

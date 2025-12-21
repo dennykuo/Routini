@@ -2,6 +2,9 @@
 
 namespace Routini;
 
+use Routini\Http\Request;
+use Routini\Http\Response;
+
 class Router
 {
     protected $routes = [];
@@ -34,7 +37,7 @@ class Router
 
         // 2. 合併 Prefix
         // 如果有前綴，拼接到 URI 前面
-        if (isset($attributes['prefix'])) {
+        if (isset($attributes['prefix']) && $attributes['prefix'] !== '') {
             $uri = rtrim($attributes['prefix'], '/') . '/' . ltrim($uri, '/');
         }
 
@@ -100,26 +103,63 @@ class Router
         return $final;
     }
 
-    // --- 以下為之前的核心邏輯 (未修改) ---
+    // --- 以下為之前的核心邏輯 (已更新支援 Request/Response) ---
 
-    public function dispatch($requestUri, $requestMethod, $requestHost = null)
+    /**
+     * 分發請求到對應的路由
+     *
+     * 支援兩種用法：
+     * 1. 新版：dispatch(Request $request): Response
+     * 2. 舊版（向後相容）：dispatch($requestUri, $requestMethod, $requestHost = null)
+     */
+    public function dispatch($requestUri, $requestMethod = null, $requestHost = null)
     {
-        $requestUri = parse_url($requestUri, PHP_URL_PATH);
-        $requestMethod = strtoupper($requestMethod);
-        $requestHost = $requestHost ?? $_SERVER['HTTP_HOST'] ?? null;
+        // 檢查第一個參數是否為 Request 物件（新版用法）
+        if ($requestUri instanceof Request) {
+            return $this->dispatchRequest($requestUri);
+        }
+
+        // 舊版用法（向後相容）
+        $request = new Request(
+            uri: $requestUri,
+            method: $requestMethod ?? 'GET',
+            server: ['HTTP_HOST' => $requestHost ?? ($_SERVER['HTTP_HOST'] ?? '')]
+        );
+
+        $response = $this->dispatchRequest($request);
+
+        // 舊版用法直接發送回應
+        $response->send();
+    }
+
+    /**
+     * 使用 Request 物件分發請求（內部方法）
+     */
+    protected function dispatchRequest(Request $request): Response
+    {
+        $requestPath = $request->getPath();
+        $requestMethod = $request->getMethod();
+        $requestHost = $request->getHost();
 
         foreach ($this->routes as $route) {
-            if (!in_array($requestMethod, $route->methods)) continue;
+            if (!in_array($requestMethod, $route->methods)) {
+                continue;
+            }
 
             // 檢查網域限制
             if ($route->domain && $route->domain !== $requestHost) {
                 continue;
             }
 
-            if ($this->matchUri($route, $requestUri)) return $this->runRoute($route);
+            if ($this->matchUri($route, $requestPath)) {
+                // 將路由參數設定到 Request
+                $request->setAttributes($route->parameters);
+
+                return $this->runRoute($route, $request);
+            }
         }
 
-        $this->sendNotFound();
+        return $this->notFoundResponse();
     }
 
     /**
@@ -196,33 +236,80 @@ class Router
         return false;
     }
 
-    protected function runRoute(RouteItem $route)
+    /**
+     * 執行路由動作
+     */
+    protected function runRoute(RouteItem $route, Request $request): Response
     {
+        // 執行中介軟體（舊版簡化方式）
         foreach ($route->middlewares as $middleware) {
             if (is_callable($middleware)) {
-                if ($middleware() === false) return;
+                if ($middleware() === false) {
+                    // 中介軟體已自行處理輸出，返回空回應
+                    return new Response('', 403);
+                }
             } elseif (class_exists($middleware)) {
                 $instance = new $middleware();
                 if (method_exists($instance, 'handle')) {
-                    if ($instance->handle() === false) return;
+                    if ($instance->handle() === false) {
+                        // 中介軟體已自行處理輸出，返回空回應
+                        return new Response('', 403);
+                    }
                 }
             }
         }
 
-        if (is_callable($route->action)) {
-            return call_user_func_array($route->action, $route->parameters);
-        }
+        // 執行路由動作
+        $result = null;
 
-        if (is_array($route->action)) {
+        // 將關聯陣列參數轉換為索引陣列，避免 PHP 8+ 具名參數問題
+        $params = array_values($route->parameters);
+
+        if (is_callable($route->action)) {
+            $result = call_user_func_array($route->action, $params);
+        } elseif (is_array($route->action)) {
             [$controller, $method] = $route->action;
             $instance = new $controller();
-            return call_user_func_array([$instance, $method], $route->parameters);
+            $result = call_user_func_array([$instance, $method], $params);
         }
+
+        // 將結果轉換為 Response
+        return $this->toResponse($result);
     }
 
+    /**
+     * 將各種類型的結果轉換為 Response 物件
+     */
+    protected function toResponse($result): Response
+    {
+        // 已經是 Response 物件
+        if ($result instanceof Response) {
+            return $result;
+        }
+
+        // 陣列轉 JSON
+        if (is_array($result)) {
+            return Response::json($result);
+        }
+
+        // 其他類型轉字串
+        return new Response((string) $result);
+    }
+
+    /**
+     * 建立 404 回應
+     */
+    protected function notFoundResponse(): Response
+    {
+        return Response::notFound('404 - 找不到頁面');
+    }
+
+    /**
+     * 舊版方法（向後相容）
+     * @deprecated 請使用 notFoundResponse()
+     */
     protected function sendNotFound()
     {
-        header("HTTP/1.0 404 Not Found");
-        echo "404 - 找不到頁面";
+        $this->notFoundResponse()->send();
     }
 }
