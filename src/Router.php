@@ -19,6 +19,9 @@ class Router
     // 路由匹配器
     protected RouteMatcherInterface $matcher;
 
+    // URL 生成器
+    protected UrlGenerator $urlGenerator;
+
     // 全域中介軟體陣列
     protected array $globalMiddlewares = [];
 
@@ -27,11 +30,16 @@ class Router
      *
      * @param RouteMatcherInterface|null $matcher 路由匹配器（可選，預設使用 RegexMatcher）
      * @param RouteCollection|null $routes 路由集合（可選，預設建立新集合）
+     * @param UrlGenerator|null $urlGenerator URL 生成器（可選，預設建立新生成器）
      */
-    public function __construct(?RouteMatcherInterface $matcher = null, ?RouteCollection $routes = null)
-    {
+    public function __construct(
+        ?RouteMatcherInterface $matcher = null,
+        ?RouteCollection $routes = null,
+        ?UrlGenerator $urlGenerator = null
+    ) {
         $this->matcher = $matcher ?? new RegexMatcher();
         $this->routes = $routes ?? new RouteCollection();
+        $this->urlGenerator = $urlGenerator ?? new UrlGenerator($this->routes);
     }
 
     /**
@@ -204,38 +212,17 @@ class Router
      */
     public function url($name, $parameters = [])
     {
-        // 1. 尋找對應名稱的路由
-        $route = $this->findRouteByName($name);
+        return $this->urlGenerator->generate($name, $parameters);
+    }
 
-        if (!$route) {
-            throw new \Exception("Route [{$name}] not defined.");
-        }
-
-        // 2. 替換 URI 中的參數
-        $uri = $route->uri;
-
-        foreach ($parameters as $key => $value) {
-            // 檢查 URI 中是否有 {key}
-            if (strpos($uri, '{' . $key . '}') !== false || strpos($uri, '{' . $key . '?}') !== false) {
-                // 替換 {key} 為實際值
-                $uri = str_replace('{' . $key . '}', $value, $uri);
-                // 處理選填參數的情況 {key?}
-                $uri = str_replace('{' . $key . '?}', $value, $uri);
-
-                // 用過的參數從陣列中移除，剩下的要變成 Query String
-                unset($parameters[$key]);
-            }
-        }
-
-        // 清理未替換的選填參數 (例如 /user/{id?} -> /user)
-        $uri = preg_replace('/\/\{[a-zA-Z0-9_]+\?\}/', '', $uri);
-
-        // 3. 處理剩餘參數變成 Query String (例如 ?sort=desc)
-        if (!empty($parameters)) {
-            $uri .= '?' . http_build_query($parameters);
-        }
-
-        return $uri;
+    /**
+     * 取得 URL 生成器
+     *
+     * @return UrlGenerator
+     */
+    public function getUrlGenerator(): UrlGenerator
+    {
+        return $this->urlGenerator;
     }
 
     /**
