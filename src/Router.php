@@ -57,7 +57,7 @@ class Router
     /**
      * 處理群組邏輯
      */
-    public function group(array $attributes, callable $routes)
+    public function group(array $attributes, callable $routes): void
     {
         // 1. 將目前的屬性推入堆疊
         $this->groupStack[] = $attributes;
@@ -72,7 +72,7 @@ class Router
     /**
      * 加入路由至集合 (已修改以支援群組)
      */
-    public function add($method, $uri, $action)
+    public function add($method, $uri, $action): RouteItem
     {
         // 1. 取得目前所有的群組屬性 (Prefix, Middleware)
         $attributes = $this->mergeGroupAttributes();
@@ -115,7 +115,7 @@ class Router
     /**
      * 計算當前堆疊中的所有屬性 (合併巢狀群組)
      */
-    protected function mergeGroupAttributes()
+    protected function mergeGroupAttributes(): array
     {
         $final = ['prefix' => '', 'middleware' => [], 'name' => ''];
 
@@ -210,7 +210,7 @@ class Router
      * @param array $parameters 參數 ['id' => 1]
      * @return string
      */
-    public function url($name, $parameters = [])
+    public function url($name, $parameters = []): string
     {
         return $this->urlGenerator->generate($name, $parameters);
     }
@@ -345,7 +345,7 @@ class Router
      * 舊版方法（向後相容）
      * @deprecated 請使用 notFoundResponse()
      */
-    protected function sendNotFound()
+    protected function sendNotFound(): void
     {
         $this->notFoundResponse()->send();
     }

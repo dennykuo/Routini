@@ -27,13 +27,15 @@ class Route
     {
         $router = self::getInstance();
 
-        // 1. 如果呼叫的是 prefix 或 middleware，回傳 RouteRegistrar (為了之後接 ->group)
+        // 1. 如果呼叫的是 prefix、middleware、name 或 domain，回傳 RouteRegistrar (為了之後接 ->group)
         if (in_array($name, ['prefix', 'middleware', 'name', 'domain'])) {
             $registrar = new RouteRegistrar($router);
             return $registrar->$name(...$arguments);
         }
 
-        // 2. 如果是 get, post, put, delete，直接操作 Router
+        // 2. 如果是 get, post, put, delete, any 等 HTTP 方法
+        // 或是 match 行為
+        // 則直接操作 Router
         return $router->add(strtoupper($name), $arguments[0], $arguments[1]);
     }
 
