@@ -1687,6 +1687,8 @@ src/
 
 ## 四、重構步驟建議（漸進式）
 
+> **📝 進度追蹤**: 詳細的實作進度請參考 [ARCHITECTURE_PROGRESS.md](./ARCHITECTURE_PROGRESS.md)
+
 ### Phase 1：基礎重構（不破壞現有功能）
 
 **目標**：加入介面和型別宣告
@@ -1718,9 +1720,12 @@ src/
 
 ---
 
-### Phase 2：職責分離（保持向後相容）
+### Phase 2：職責分離（保持向後相容） 🟡 部分完成
 
 **目標**：拆分 Router 類別
+
+> **✅ 已完成**: RouteMatcherInterface + RegexMatcher（策略模式）
+> **❌ 待完成**: RouteCollection、UrlGenerator、RouteDispatcher 分離
 
 1. **提取 RouteCollection**
    ```php
@@ -1761,9 +1766,13 @@ src/
 
 ---
 
-### Phase 3：引入 Request/Response
+### Phase 3：引入 Request/Response ✅ 已完成
 
 **目標**：統一請求回應處理
+
+> **✅ 完成日期**: 2025-12-21
+> **✅ 測試**: 69 tests, 171 assertions
+> **✅ 向後相容**: 100%
 
 1. **建立 Request 類別**
    ```php
@@ -1802,9 +1811,13 @@ src/
 
 ---
 
-### Phase 4：中介軟體管道
+### Phase 4：中介軟體管道 ✅ 已完成
 
 **目標**：實作標準的中介軟體系統
+
+> **✅ 完成日期**: 2025-12-21
+> **✅ 測試**: 27 tests, 46 assertions
+> **✅ 向後相容**: 100%（支援舊版 boolean 返回的中介軟體）
 
 1. **定義 MiddlewareInterface**
    ```php
@@ -1926,20 +1939,22 @@ src/
 
 ### 優先級排序
 
+> **📝 更新**: 詳細進度請參考 [ARCHITECTURE_PROGRESS.md](./ARCHITECTURE_PROGRESS.md)
+
 #### 🔴 最高優先級（影響最大）
-1. 加入介面定義
-2. 拆分 Router 類別
-3. 提取 RouteMatcher
+1. ✅ ~~加入介面定義~~ (部分完成：RouteMatcherInterface, MiddlewareInterface)
+2. ❌ 拆分 Router 類別 **← 建議下一步**
+3. ✅ ~~提取 RouteMatcher~~ (已完成：RegexMatcher + 策略模式)
 
 #### 🟡 中優先級（重要但不緊急）
-4. 引入 Request/Response
-5. 實作 MiddlewarePipeline
-6. 改善 RouteItem 封裝
+4. ✅ ~~引入 Request/Response~~ (已完成)
+5. ✅ ~~實作 MiddlewarePipeline~~ (已完成：洋蔥模型)
+6. ❌ 改善 RouteItem 封裝
 
 #### 🟢 低優先級（錦上添花）
-7. 路由快取
-8. 事件系統
-9. 編譯路由
+7. ❌ 路由快取
+8. ❌ 事件系統
+9. ❌ 編譯路由
 
 ### 預期收益
 
