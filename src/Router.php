@@ -4,6 +4,8 @@ namespace Routini;
 
 use Routini\Http\Request;
 use Routini\Http\Response;
+use Routini\Contracts\RouteMatcherInterface;
+use Routini\Matching\RegexMatcher;
 
 class Router
 {
@@ -11,6 +13,19 @@ class Router
 
     // 用來儲存當前群組設定的堆疊 (支援巢狀群組)
     protected $groupStack = [];
+
+    // 路由匹配器
+    protected RouteMatcherInterface $matcher;
+
+    /**
+     * 建構函式
+     *
+     * @param RouteMatcherInterface|null $matcher 路由匹配器（可選，預設使用 RegexMatcher）
+     */
+    public function __construct(?RouteMatcherInterface $matcher = null)
+    {
+        $this->matcher = $matcher ?? new RegexMatcher();
+    }
 
     /**
      * 處理群組邏輯
@@ -217,23 +232,44 @@ class Router
         return null;
     }
 
-    protected function matchUri(RouteItem $route, $requestUri)
+    /**
+     * 檢查路由是否匹配給定的 URI（使用策略模式）
+     *
+     * @param RouteItem $route 路由項目
+     * @param string $requestUri 請求 URI
+     * @return bool 是否匹配
+     */
+    protected function matchUri(RouteItem $route, $requestUri): bool
     {
-        // 1. 先處理選填參數 {param?}
-        // 將 /{param?} 轉換為 (?:/(?P<param>[^/]+))?
-        // 這裡假設選填參數前通常會有一個斜線
-        $pattern = preg_replace('/\/{([a-zA-Z0-9_]+)\?\}/', '(?:/(?P<\1>[^/]+))?', $route->uri);
-
-        // 2. 處理必填參數 {param}
-        $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[^/]+)', $pattern);
-
-        $pattern = "~^" . $pattern . "$~";
-
-        if (preg_match($pattern, $requestUri, $matches)) {
-            $route->parameters = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
+        // 使用注入的 matcher 策略進行匹配
+        if ($this->matcher->match($route, $requestUri)) {
+            // 提取參數並設定到路由項目
+            $route->parameters = $this->matcher->extractParameters($route, $requestUri);
             return true;
         }
+
         return false;
+    }
+
+    /**
+     * 設定路由匹配器
+     *
+     * @param RouteMatcherInterface $matcher 路由匹配器
+     * @return void
+     */
+    public function setMatcher(RouteMatcherInterface $matcher): void
+    {
+        $this->matcher = $matcher;
+    }
+
+    /**
+     * 取得當前使用的路由匹配器
+     *
+     * @return RouteMatcherInterface
+     */
+    public function getMatcher(): RouteMatcherInterface
+    {
+        return $this->matcher;
     }
 
     /**
