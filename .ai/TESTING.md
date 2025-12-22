@@ -26,7 +26,7 @@ vendor/bin/pest tests/Feature/DomainRoutingTest.php
 
 ```php
 beforeEach(function () {
-    $reflection = new ReflectionClass(\MiniLaravel\Route::class);
+    $reflection = new ReflectionClass(\Routinil\Route::class);
     $property = $reflection->getProperty('instance');
     $property->setAccessible(true);
     $property->setValue(null, null);

@@ -3,7 +3,7 @@
 /**
  * Demo
  *
- * 這是一個展示 MiniLaravel Router 所有功能的範例檔案。
+ * 這是一個展示 Routinil Router 所有功能的範例檔案。
  * 包含了：
  * 1. 自動載入 (Composer & Manual)
  * 2. 基本路由與參數
@@ -39,7 +39,7 @@ use Routini\Route;
  * 測試方法: 瀏覽器訪問 /
  */
 Route::get('/', function () {
-    echo "<h1>MiniLaravel Router Demo</h1>";
+    echo "<h1>Routinil Router Demo</h1>";
     echo "<p>歡迎來到測試首頁。請嘗試點擊以下連結測試各種路由功能：</p>";
 
     echo "<h3>1. 基礎與參數路由</h3>";

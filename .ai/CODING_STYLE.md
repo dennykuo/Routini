@@ -19,8 +19,8 @@
 
 ### Facade Pattern (外觀模式)
 我們使用透過 `__callStatic` 實作的簡化版 Facade 模式。
-- **Target**: `MiniLaravel\Route` 是靜態入口點。
-- **Implementation**: 它將靜態呼叫委派給 `MiniLaravel\Router` 的 Singleton 實例，或建立 `RouteRegistrar` 進行鏈式呼叫 (Chaining)。
+- **Target**: `Routinil\Route` 是靜態入口點。
+- **Implementation**: 它將靜態呼叫委派給 `Routinil\Router` 的 Singleton 實例，或建立 `RouteRegistrar` 進行鏈式呼叫 (Chaining)。
 
 ### Chaining (鏈式呼叫)
 設定路由或群組的方法（如 `middleware`, `prefix`, `name`）應回傳 `$this` 以允許 Method Chaining。

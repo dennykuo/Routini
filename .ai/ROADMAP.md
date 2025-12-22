@@ -1,6 +1,6 @@
 # Roadmap (開發藍圖)
 
-本文件列出了 MiniLaravel Router 專案中尚未實作的功能，作為未來開發的導引。
+本文件列出了 Routinil Router 專案中尚未實作的功能，作為未來開發的導引。
 
 ## 待實作功能 (Missing Features)
 
