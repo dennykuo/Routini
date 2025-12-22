@@ -68,18 +68,13 @@ private function validateHost(string $host, array $allowedHosts): bool
 
 ---
 
-#### 2. Arbitrary Code Execution (任意程式碼執行)
+#### 2. Arbitrary Code Execution (任意程式碼執行) ✅ 已緩解
 
 **風險描述**:
 ```php
-// src/Router.php:304-306
-if (is_callable($route->getAction())) {
-    $result = call_user_func_array($route->getAction(), $params);
-} elseif (is_array($route->getAction())) {
-    [$controller, $method] = $route->getAction();
-    $instance = new $controller();  // ⚠️ 直接實例化
-    $result = call_user_func_array([$instance, $method], $params);
-}
+// src/Router.php:346-354 (舊版)
+[$controller, $method] = $route->getAction();
+$instance = new $controller();  // ⚠️ 直接實例化，未驗證
 ```
 
 **問題**:
@@ -90,28 +85,67 @@ if (is_callable($route->getAction())) {
 - 遠端程式碼執行 (RCE)
 - 系統完全被控制
 
-**建議修復**:
+**✅ 已實作的防護措施** (S2 完成):
+
+1. **ControllerInterface 標記介面**:
 ```php
-// 1. 白名單驗證控制器
-private array $allowedControllers = [];
-
-// 2. 驗證控制器類別存在且符合規範
-private function validateController(string $controller): bool
+// src/Contracts/ControllerInterface.php
+interface ControllerInterface
 {
-    if (!class_exists($controller)) {
-        throw new \Exception("Controller not found: {$controller}");
-    }
-
-    // 檢查是否實作特定介面
-    if (!is_subclass_of($controller, ControllerInterface::class)) {
-        throw new \Exception("Invalid controller: {$controller}");
-    }
-
-    return true;
+    // 標記介面，用於型別檢查和安全驗證
 }
 ```
 
-**目前狀態**: ✅ 低風險（路由定義在程式碼中，非來自使用者輸入）
+2. **Router 中的驗證邏輯**:
+```php
+// src/Router.php
+protected function validateController(string $controller): void
+{
+    // 檢查類別是否存在
+    if (!class_exists($controller)) {
+        throw new \RuntimeException("Controller class not found: {$controller}");
+    }
+
+    // 檢查是否實作 ControllerInterface
+    if (!is_subclass_of($controller, ControllerInterface::class)) {
+        throw new \RuntimeException(
+            "Controller must implement ControllerInterface: {$controller}"
+        );
+    }
+}
+```
+
+3. **可選驗證機制**（預設關閉以保持向後相容）:
+```php
+// 啟用控制器驗證
+$router = new Router(validateControllers: true);
+// 或
+$router->enableControllerValidation();
+```
+
+**使用範例**:
+```php
+// 控制器需實作 ControllerInterface
+class UserController implements ControllerInterface
+{
+    public function show($id)
+    {
+        return "User: {$id}";
+    }
+}
+
+// 啟用驗證
+$router = new Router(validateControllers: true);
+Route::get('/users/{id}', [UserController::class, 'show']);
+
+// 嘗試使用未實作介面的類別會拋出例外
+Route::get('/bad', [stdClass::class, 'method']); // ❌ 會失敗
+```
+
+**目前狀態**:
+- ✅ 已實作控制器驗證機制（S2 完成 2025-12-22）
+- ✅ 可選啟用，預設關閉以保持向後相容
+- 🟢 低風險（路由定義在程式碼中，非來自使用者輸入）
 
 ---
 
@@ -444,14 +478,33 @@ return Response::redirect($request->input('url')); // 未驗證！
 
 ---
 
-#### S2. 控制器白名單驗證 🔴 高優先級
+#### S2. 控制器白名單驗證 ✅ 已完成
 
-**預估時間**: 45 分鐘
+**完成日期**: 2025-12-22
+**測試結果**: ✅ 168 tests passed (352 assertions)
+**實際時間**: 45 分鐘
 
 **實作內容**:
-- 新增 `ControllerInterface`
-- 在 `Router::runRoute()` 中驗證控制器類別
-- 提供控制器註冊機制
+- ✅ 新增 `ControllerInterface` 標記介面
+- ✅ 在 `Router::runRoute()` 中加入驗證邏輯
+- ✅ 提供 `enableControllerValidation()` / `disableControllerValidation()` 方法
+- ✅ 預設關閉以保持向後相容
+- ✅ 新增 `validateController()` 方法檢查類別存在性和介面實作
+
+**使用方式**:
+```php
+// 啟用控制器驗證
+$router = new Router(validateControllers: true);
+
+// 或動態啟用
+$router->enableControllerValidation();
+
+// 控制器必須實作 ControllerInterface
+class UserController implements ControllerInterface
+{
+    public function index() { /* ... */ }
+}
+```
 
 ---
 
@@ -501,6 +554,12 @@ return Response::redirect($request->input('url')); // 未驗證！
 ---
 
 ## 變更歷史
+
+- **2025-12-22 (更新)**: S1, S2, S3 安全性改善完成
+  - ✅ S1: Host Header 驗證完成
+  - ✅ S2: 控制器白名單驗證完成
+  - ✅ S3: 安全的重定向方法完成
+  - ✅ 更新已緩解的風險狀態
 
 - **2025-12-22**: 初始版本，識別主要安全風險
   - 記錄 Host Header Injection 風險

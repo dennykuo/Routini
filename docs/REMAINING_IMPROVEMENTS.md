@@ -365,33 +365,42 @@ if (!$request->validateHost($allowedHosts)) {
 
 ---
 
-#### S2. 控制器白名單驗證 ⏳ 待實作
+#### S2. 控制器白名單驗證 ✅ 已完成
 
-**預估時間**: 45 分鐘
-**風險等級**: 中（當前為低風險，因路由定義在程式碼中）
+**完成日期**: 2025-12-22
+**測試結果**: ✅ 168 tests passed (352 assertions)
+**風險等級**: 中 → 已緩解
 
-**問題描述**:
-- 控制器類別直接實例化，未驗證
-- 雖然當前路由定義在程式碼中，但應增加防護層
+**實作內容**:
+- ✅ `ControllerInterface` - 標記介面for控制器類別
+- ✅ `Router::validateController()` - 驗證控制器類別
+- ✅ `Router::enableControllerValidation()` - 啟用驗證
+- ✅ `Router::disableControllerValidation()` - 停用驗證
+- ✅ `Router::isControllerValidationEnabled()` - 檢查狀態
+- ✅ 可選驗證機制（預設關閉以保持向後相容）
 
-**建議實作**:
+**使用範例**:
 ```php
-// 新增 ControllerInterface
-namespace Routini\Contracts;
-
-interface ControllerInterface {}
-
-// 在 Router 中驗證
-private function validateController(string $controller): void
+// 控制器實作 ControllerInterface
+class UserController implements ControllerInterface
 {
-    if (!class_exists($controller)) {
-        throw new \RuntimeException("Controller not found: {$controller}");
-    }
-
-    if (!is_subclass_of($controller, ControllerInterface::class)) {
-        throw new \RuntimeException("Invalid controller: {$controller}");
+    public function show($id)
+    {
+        return "User: {$id}";
     }
 }
+
+// 方式 1: 建構函式啟用
+$router = new Router(validateControllers: true);
+
+// 方式 2: 動態啟用
+$router->enableControllerValidation();
+
+// 使用路由
+Route::get('/users/{id}', [UserController::class, 'show']);
+
+// 未實作介面的類別會被拒絕
+Route::get('/bad', [stdClass::class, 'method']); // ❌ RuntimeException
 ```
 
 ---

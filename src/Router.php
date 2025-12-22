@@ -5,6 +5,7 @@ namespace Routini;
 use Routini\Http\Request;
 use Routini\Http\Response;
 use Routini\Contracts\RouteMatcherInterface;
+use Routini\Contracts\ControllerInterface;
 use Routini\Matching\RegexMatcher;
 use Routini\Middleware\MiddlewarePipeline;
 
@@ -25,21 +26,27 @@ class Router
     // 全域中介軟體陣列
     protected array $globalMiddlewares = [];
 
+    // 是否啟用控制器驗證（預設關閉以保持向後相容）
+    protected bool $validateControllers = false;
+
     /**
      * 建構函式
      *
      * @param RouteMatcherInterface|null $matcher 路由匹配器（可選，預設使用 RegexMatcher）
      * @param RouteCollection|null $routes 路由集合（可選，預設建立新集合）
      * @param UrlGenerator|null $urlGenerator URL 生成器（可選，預設建立新生成器）
+     * @param bool $validateControllers 是否啟用控制器驗證（可選，預設 false）
      */
     public function __construct(
         ?RouteMatcherInterface $matcher = null,
         ?RouteCollection $routes = null,
-        ?UrlGenerator $urlGenerator = null
+        ?UrlGenerator $urlGenerator = null,
+        bool $validateControllers = false
     ) {
         $this->matcher = $matcher ?? new RegexMatcher();
         $this->routes = $routes ?? new RouteCollection();
         $this->urlGenerator = $urlGenerator ?? new UrlGenerator($this->routes);
+        $this->validateControllers = $validateControllers;
     }
 
     /**
@@ -52,6 +59,41 @@ class Router
     {
         $this->globalMiddlewares[] = $middleware;
         return $this;
+    }
+
+    /**
+     * 啟用控制器驗證
+     *
+     * 啟用後，所有控制器類別必須實作 ControllerInterface
+     * 用於防止任意類別實例化的安全攻擊
+     *
+     * @return $this
+     */
+    public function enableControllerValidation(): self
+    {
+        $this->validateControllers = true;
+        return $this;
+    }
+
+    /**
+     * 停用控制器驗證（預設）
+     *
+     * @return $this
+     */
+    public function disableControllerValidation(): self
+    {
+        $this->validateControllers = false;
+        return $this;
+    }
+
+    /**
+     * 檢查是否啟用控制器驗證
+     *
+     * @return bool
+     */
+    public function isControllerValidationEnabled(): bool
+    {
+        return $this->validateControllers;
     }
 
     /**
@@ -274,6 +316,35 @@ class Router
     }
 
     /**
+     * 驗證控制器類別（安全性檢查）
+     *
+     * 確保控制器類別：
+     * 1. 存在
+     * 2. 實作 ControllerInterface（防止任意類別實例化）
+     *
+     * @param string $controller 控制器類別名稱
+     * @return void
+     * @throws \RuntimeException 當控制器無效時
+     */
+    protected function validateController(string $controller): void
+    {
+        // 檢查類別是否存在
+        if (!class_exists($controller)) {
+            throw new \RuntimeException(
+                "Controller class not found: {$controller}"
+            );
+        }
+
+        // 檢查是否實作 ControllerInterface
+        if (!is_subclass_of($controller, ControllerInterface::class)) {
+            throw new \RuntimeException(
+                "Controller must implement ControllerInterface: {$controller}. " .
+                "This security measure prevents arbitrary class instantiation."
+            );
+        }
+    }
+
+    /**
      * 執行路由動作
      */
     protected function runRoute(RouteItem $route, Request $request): Response
@@ -302,6 +373,12 @@ class Router
                 $result = call_user_func_array($route->getAction(), $params);
             } elseif (is_array($route->getAction())) {
                 [$controller, $method] = $route->getAction();
+
+                // 驗證控制器（如果啟用）
+                if ($this->validateControllers) {
+                    $this->validateController($controller);
+                }
+
                 $instance = new $controller();
                 $result = call_user_func_array([$instance, $method], $params);
             }
