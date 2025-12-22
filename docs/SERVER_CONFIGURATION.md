@@ -1,4 +1,6 @@
-# Nginx
+# Server 設定
+
+## Nginx
 
 ```
 server {
@@ -20,7 +22,9 @@ server {
 }
 ```
 
-# Apache (.htaccess)
+---
+
+## Apache (.htaccess)
 
 ```
 <IfModule mod_rewrite.c>
