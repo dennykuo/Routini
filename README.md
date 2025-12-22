@@ -159,6 +159,31 @@ composer test
 vendor/bin/pest
 ```
 
+## 文件 (Documentation)
+
+更多詳細資訊請參考以下文件：
+
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - 架構設計文件
+  - 核心組件說明
+  - 設計模式與原則
+  - 介面契約
+  - 安全性設計
+
+- **[SECURITY.md](docs/SECURITY.md)** - 安全性文件
+  - 安全性風險分析
+  - 防護措施說明
+  - 使用範例
+
+- **[LARAVEL_COMPARISON.md](docs/LARAVEL_COMPARISON.md)** - 與 Laravel 路由系統的比較
+  - 功能差異對照
+  - 使用範例比較
+  - 遷移指南
+
+- **[REMAINING_IMPROVEMENTS.md](docs/REMAINING_IMPROVEMENTS.md)** - 待改善項目清單
+  - 已完成項目
+  - 可選改善項目
+  - 未來擴展方向
+
 ## 授權 (License)
 
 Routini 採用 [MIT license](LICENSE) 授權。
