@@ -16,11 +16,11 @@
 ## 需求 (Requirements)
 
 - PHP 8.0 或更高版本
-- Composer
+- Composer (可選)
 
 ## 安裝 (Installation)
 
-###透過 Composer (推薦)
+### 透過 Composer (推薦)
 
 ```bash
 composer require dennykuo/routini
