@@ -105,7 +105,7 @@ class Router
 
         // [新增] 設定網域
         if (isset($attributes['domain'])) {
-            $route->domain = $attributes['domain'];
+            $route->setDomain($attributes['domain']);
         }
 
         $this->routes->add($route);
@@ -184,18 +184,18 @@ class Router
         $requestHost = $request->getHost();
 
         foreach ($this->routes->all() as $route) {
-            if (!in_array($requestMethod, $route->methods)) {
+            if (!in_array($requestMethod, $route->getMethods())) {
                 continue;
             }
 
             // 檢查網域限制
-            if ($route->domain && $route->domain !== $requestHost) {
+            if ($route->getDomain() && $route->getDomain() !== $requestHost) {
                 continue;
             }
 
             if ($this->matchUri($route, $requestPath)) {
                 // 將路由參數設定到 Request
-                $request->setAttributes($route->parameters);
+                $request->setAttributes($route->getParameters());
 
                 return $this->runRoute($route, $request);
             }
@@ -245,7 +245,7 @@ class Router
         // 使用注入的 matcher 策略進行匹配
         if ($this->matcher->match($route, $requestUri)) {
             // 提取參數並設定到路由項目
-            $route->parameters = $this->matcher->extractParameters($route, $requestUri);
+            $route->setParameters($this->matcher->extractParameters($route, $requestUri));
             return true;
         }
 
@@ -287,21 +287,21 @@ class Router
         }
 
         // 2. 再加入路由特定的中介軟體
-        foreach ($route->middlewares as $middleware) {
+        foreach ($route->getMiddlewares() as $middleware) {
             $pipeline->pipe($middleware);
         }
 
         // 3. 定義最終的路由處理器（管道的核心）
         $destination = function (Request $request) use ($route) {
             // 將關聯陣列參數轉換為索引陣列，避免 PHP 8+ 具名參數問題
-            $params = array_values($route->parameters);
+            $params = array_values($route->getParameters());
 
             $result = null;
 
-            if (is_callable($route->action)) {
-                $result = call_user_func_array($route->action, $params);
-            } elseif (is_array($route->action)) {
-                [$controller, $method] = $route->action;
+            if (is_callable($route->getAction())) {
+                $result = call_user_func_array($route->getAction(), $params);
+            } elseif (is_array($route->getAction())) {
+                [$controller, $method] = $route->getAction();
                 $instance = new $controller();
                 $result = call_user_func_array([$instance, $method], $params);
             }

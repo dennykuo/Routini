@@ -6,20 +6,20 @@ use Routini\Contracts\RouteInterface;
 
 class RouteItem implements RouteInterface
 {
-    public $methods = [];
-    public $uri;
-    public $action;
-    public $name = null;
-    public $domain = null;
-    public $middlewares = [];
-    public $parameters = [];
-    protected $groupPrefix = '';
-
-    public function __construct($methods, $uri, $action)
-    {
+    /**
+     * 使用建構子屬性提升 (PHP 8.0+) 和私有屬性以提升封裝性
+     */
+    public function __construct(
+        private array $methods,
+        private string $uri,
+        private $action,
+        private ?string $name = null,
+        private ?string $domain = null,
+        private array $middlewares = [],
+        private array $parameters = [],
+        private string $groupPrefix = ''
+    ) {
         $this->methods = (array) $methods;
-        $this->uri = $uri;
-        $this->action = $action;
     }
 
     /**
@@ -87,6 +87,14 @@ class RouteItem implements RouteInterface
     }
 
     /**
+     * 設定網域限制
+     */
+    public function setDomain(?string $domain): void
+    {
+        $this->domain = $domain;
+    }
+
+    /**
      * 設定路由名稱
      * 用法: ->name('user.profile')
      */
@@ -114,5 +122,66 @@ class RouteItem implements RouteInterface
             $this->middlewares[] = $middleware;
         }
         return $this;
+    }
+
+    /**
+     * 魔術方法：向後相容 - 允許讀取屬性
+     *
+     * @deprecated 直接存取屬性已被棄用，請使用 getter 方法
+     * @param string $name 屬性名稱
+     * @return mixed
+     */
+    public function __get(string $name)
+    {
+        return match($name) {
+            'methods' => $this->methods,
+            'uri' => $this->uri,
+            'action' => $this->action,
+            'name' => $this->name,
+            'domain' => $this->domain,
+            'middlewares' => $this->middlewares,
+            'parameters' => $this->parameters,
+            default => throw new \Exception("Property {$name} does not exist on RouteItem")
+        };
+    }
+
+    /**
+     * 魔術方法：向後相容 - 允許設定屬性（但發出警告）
+     *
+     * @deprecated 直接設定屬性已被棄用，請使用 setter 方法
+     * @param string $name 屬性名稱
+     * @param mixed $value 屬性值
+     */
+    public function __set(string $name, $value): void
+    {
+        trigger_error(
+            "Direct property access to RouteItem::\${$name} is deprecated. Use getter/setter methods instead.",
+            E_USER_DEPRECATED
+        );
+
+        match($name) {
+            'methods' => $this->methods = (array) $value,
+            'uri' => $this->uri = $value,
+            'action' => $this->action = $value,
+            'name' => $this->name = $value,
+            'domain' => $this->domain = $value,
+            'middlewares' => $this->middlewares = (array) $value,
+            'parameters' => $this->parameters = (array) $value,
+            default => throw new \Exception("Property {$name} does not exist on RouteItem")
+        };
+    }
+
+    /**
+     * 魔術方法：檢查屬性是否存在
+     *
+     * @param string $name 屬性名稱
+     * @return bool
+     */
+    public function __isset(string $name): bool
+    {
+        return in_array($name, [
+            'methods', 'uri', 'action', 'name',
+            'domain', 'middlewares', 'parameters'
+        ]);
     }
 }
