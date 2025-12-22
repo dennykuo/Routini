@@ -342,6 +342,92 @@ class RouteItem implements RouteInterface
 
 ## 📊 優先級總覽
 
+### 🔴 安全性改善（建議優先）
+
+#### S1. Host Header 驗證 ✅ 已完成
+
+**完成日期**: 2025-12-22
+**測試結果**: ✅ 168 tests passed (352 assertions)
+**風險等級**: 高 → 已緩解
+
+**實作內容**:
+- ✅ `Request::validateHost()` - 驗證 Host Header
+- ✅ `Request::getSanitizedHost()` - 取得已淨化的 Host（移除埠號）
+- ✅ 使用嚴格比對 (`in_array($host, $allowedHosts, true)`)
+
+**使用範例**:
+```php
+$allowedHosts = ['example.com', 'www.example.com'];
+if (!$request->validateHost($allowedHosts)) {
+    return Response::error('Invalid Host header', 400);
+}
+```
+
+---
+
+#### S2. 控制器白名單驗證 ⏳ 待實作
+
+**預估時間**: 45 分鐘
+**風險等級**: 中（當前為低風險，因路由定義在程式碼中）
+
+**問題描述**:
+- 控制器類別直接實例化，未驗證
+- 雖然當前路由定義在程式碼中，但應增加防護層
+
+**建議實作**:
+```php
+// 新增 ControllerInterface
+namespace Routini\Contracts;
+
+interface ControllerInterface {}
+
+// 在 Router 中驗證
+private function validateController(string $controller): void
+{
+    if (!class_exists($controller)) {
+        throw new \RuntimeException("Controller not found: {$controller}");
+    }
+
+    if (!is_subclass_of($controller, ControllerInterface::class)) {
+        throw new \RuntimeException("Invalid controller: {$controller}");
+    }
+}
+```
+
+---
+
+#### S3. 安全的重定向方法 ✅ 已完成
+
+**完成日期**: 2025-12-22
+**測試結果**: ✅ 168 tests passed (352 assertions)
+**風險等級**: 中 → 已緩解
+
+**實作內容**:
+- ✅ `Response::safeRedirect()` - 安全的重定向方法
+- ✅ `Response::isValidRedirectUrl()` - 驗證 URL 安全性（私有方法）
+- ✅ 支援相對 URL
+- ✅ 支援域名白名單
+- ✅ 在 `Response::redirect()` 加入安全警告註解
+
+**使用範例**:
+```php
+// 允許相對 URL（安全）
+Response::safeRedirect('/dashboard');
+
+// 允許特定域名
+$allowedDomains = ['example.com', 'trusted.com'];
+Response::safeRedirect('https://example.com/page', $allowedDomains);
+
+// 不安全的 URL 會拋出例外
+try {
+    Response::safeRedirect('https://evil.com/phishing');
+} catch (\InvalidArgumentException $e) {
+    // 處理錯誤
+}
+```
+
+---
+
 ### 🟡 可選處理
 
 **1. 提取 RouteDispatcher**（1-2 小時）

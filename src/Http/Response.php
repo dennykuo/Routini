@@ -152,10 +152,80 @@ class Response
 
     /**
      * 便捷方法：建立重導向回應
+     *
+     * 注意：此方法不驗證 URL，可能導致開放重定向漏洞
+     * 如需安全重定向，請使用 safeRedirect()
      */
     public static function redirect(string $url, int $status = 302): self
     {
         return new self('', $status, ['Location' => $url]);
+    }
+
+    /**
+     * 便捷方法：建立安全的重導向回應（防止開放重定向攻擊）
+     *
+     * @param string $url 重定向目標 URL
+     * @param array $allowedDomains 允許的域名清單（空陣列表示只允許相對 URL）
+     * @param int $status HTTP 狀態碼
+     * @return self
+     * @throws \InvalidArgumentException 當 URL 不安全時
+     */
+    public static function safeRedirect(
+        string $url,
+        array $allowedDomains = [],
+        int $status = 302
+    ): self {
+        if (!self::isValidRedirectUrl($url, $allowedDomains)) {
+            throw new \InvalidArgumentException(
+                "Unsafe redirect URL detected: {$url}. " .
+                "Only relative URLs or whitelisted domains are allowed."
+            );
+        }
+
+        return self::redirect($url, $status);
+    }
+
+    /**
+     * 驗證重定向 URL 是否安全
+     *
+     * @param string $url 要驗證的 URL
+     * @param array $allowedDomains 允許的域名清單
+     * @return bool
+     */
+    private static function isValidRedirectUrl(string $url, array $allowedDomains): bool
+    {
+        // 空 URL 不允許
+        if (empty($url)) {
+            return false;
+        }
+
+        // 允許相對 URL（以 / 開頭但不是 //）
+        if (strpos($url, '/') === 0 && strpos($url, '//') !== 0) {
+            return true;
+        }
+
+        // 解析 URL
+        $parsed = parse_url($url);
+
+        // URL 解析失敗
+        if ($parsed === false) {
+            return false;
+        }
+
+        // 沒有 host（相對 URL）
+        if (!isset($parsed['host'])) {
+            return true;
+        }
+
+        // 如果有 host，檢查是否在白名單中
+        if (!empty($allowedDomains)) {
+            $host = strtolower($parsed['host']);
+            $allowedDomains = array_map('strtolower', $allowedDomains);
+            return in_array($host, $allowedDomains, true);
+        }
+
+        // 有 host 但沒有白名單，不允許
+        return false;
     }
 
     /**

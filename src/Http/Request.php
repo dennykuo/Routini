@@ -248,4 +248,41 @@ class Request
     {
         return $this->method === 'POST';
     }
+
+    /**
+     * 驗證 Host Header（防止 Host Header Injection 攻擊）
+     *
+     * @param array $allowedHosts 允許的主機清單
+     * @return bool
+     */
+    public function validateHost(array $allowedHosts): bool
+    {
+        $host = $this->getHost();
+
+        // 如果未設定 Host，不通過驗證
+        if (empty($host)) {
+            return false;
+        }
+
+        // 嚴格比對允許的主機清單
+        return in_array($host, $allowedHosts, true);
+    }
+
+    /**
+     * 取得已淨化的 Host（移除埠號）
+     *
+     * @return string
+     */
+    public function getSanitizedHost(): string
+    {
+        $host = $this->getHost();
+
+        // 移除埠號部分（例如：example.com:8080 -> example.com）
+        if (($pos = strpos($host, ':')) !== false) {
+            $host = substr($host, 0, $pos);
+        }
+
+        // 轉換為小寫
+        return strtolower($host);
+    }
 }
