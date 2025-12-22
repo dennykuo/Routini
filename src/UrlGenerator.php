@@ -2,20 +2,23 @@
 
 namespace Routini;
 
+use Routini\Contracts\UrlGeneratorInterface;
+use Routini\Contracts\RouteCollectionInterface;
+
 /**
  * URL 生成器
  *
  * 負責根據路由名稱生成 URL
  */
-class UrlGenerator
+class UrlGenerator implements UrlGeneratorInterface
 {
     /**
      * 建構函式
      *
-     * @param RouteCollection $routes 路由集合
+     * @param RouteCollectionInterface $routes 路由集合
      */
     public function __construct(
-        protected RouteCollection $routes
+        protected RouteCollectionInterface $routes
     ) {}
 
     /**
@@ -36,7 +39,7 @@ class UrlGenerator
         }
 
         // 2. 編譯 URI（替換參數）
-        return $this->compileUri($route->uri, $parameters);
+        return $this->compileUri($route->getUri(), $parameters);
     }
 
     /**
@@ -98,9 +101,9 @@ class UrlGenerator
     /**
      * 取得路由集合（用於測試或擴展）
      *
-     * @return RouteCollection
+     * @return RouteCollectionInterface
      */
-    public function getRoutes(): RouteCollection
+    public function getRoutes(): RouteCollectionInterface
     {
         return $this->routes;
     }

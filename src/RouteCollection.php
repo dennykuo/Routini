@@ -2,40 +2,43 @@
 
 namespace Routini;
 
+use Routini\Contracts\RouteCollectionInterface;
+use Routini\Contracts\RouteInterface;
+
 /**
  * 路由集合
  *
  * 負責儲存和管理所有路由項目
  */
-class RouteCollection
+class RouteCollection implements RouteCollectionInterface
 {
     /**
      * 所有路由項目
      *
-     * @var RouteItem[]
+     * @var RouteInterface[]
      */
     protected array $routes = [];
 
     /**
      * 路由名稱對應表（用於快速查找）
      *
-     * @var array<string, RouteItem>
+     * @var array<string, RouteInterface>
      */
     protected array $nameMap = [];
 
     /**
      * 新增路由到集合
      *
-     * @param RouteItem $route 路由項目
+     * @param RouteInterface $route 路由項目
      * @return void
      */
-    public function add(RouteItem $route): void
+    public function add(RouteInterface $route): void
     {
         $this->routes[] = $route;
 
         // 如果路由有名稱，加入名稱對應表
-        if ($route->name !== null) {
-            $this->nameMap[$route->name] = $route;
+        if ($route->getName() !== null) {
+            $this->nameMap[$route->getName()] = $route;
         }
     }
 
@@ -56,9 +59,9 @@ class RouteCollection
      * 如果找不到，遍歷所有路由查找（處理路由加入後才設定名稱的情況）
      *
      * @param string $name 路由名稱
-     * @return RouteItem|null
+     * @return RouteInterface|null
      */
-    public function findByName(string $name): ?RouteItem
+    public function findByName(string $name): ?RouteInterface
     {
         // 優先從名稱對應表查找
         if (isset($this->nameMap[$name])) {
@@ -67,7 +70,7 @@ class RouteCollection
 
         // 遍歷所有路由查找（向後相容：處理加入後才命名的路由）
         foreach ($this->routes as $route) {
-            if ($route->name === $name) {
+            if ($route->getName() === $name) {
                 // 找到後加入對應表，下次查找更快
                 $this->nameMap[$name] = $route;
                 return $route;
