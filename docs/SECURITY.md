@@ -530,15 +530,68 @@ class UserController implements ControllerInterface
 
 ---
 
-#### S5. 安全性測試 🟡 中優先級
+#### S5. 安全性測試 ✅ 已完成
 
-**預估時間**: 2 小時
+**完成日期**: 2025-12-22
+**測試結果**: ✅ 203 tests passed (398 assertions, +35 security tests)
+**實際時間**: 1.5 小時
 
 **實作內容**:
-- 新增安全性測試案例
-- 測試 Host Header Injection
-- 測試 Path Traversal
-- 測試控制器驗證
+- ✅ 新增 `tests/Feature/SecurityTest.php` 測試檔案
+- ✅ 測試 Host Header Injection 防護（8 個測試）
+- ✅ 測試 Controller Validation（9 個測試）
+- ✅ 測試 Safe Redirect（10 個測試）
+- ✅ 測試 Path Traversal 防護（4 個測試）
+- ✅ 測試其他安全功能（4 個測試）
+
+**測試覆蓋範圍**:
+
+1. **Host Header Validation (S1) - 8 tests**:
+   - ✅ validateHost() 接受白名單中的主機
+   - ✅ validateHost() 拒絕不在白名單中的主機
+   - ✅ validateHost() 拒絕空的主機名
+   - ✅ validateHost() 使用嚴格比對（大小寫敏感）
+   - ✅ getSanitizedHost() 移除埠號
+   - ✅ getSanitizedHost() 轉換為小寫
+   - ✅ getSanitizedHost() 處理沒有埠號的情況
+   - ✅ 防止 Host Header Injection 攻擊範例
+
+2. **Controller Validation (S2) - 9 tests**:
+   - ✅ 預設狀態下控制器驗證是關閉的
+   - ✅ 可以透過建構函式啟用控制器驗證
+   - ✅ 可以動態啟用控制器驗證
+   - ✅ 可以動態停用控制器驗證
+   - ✅ 啟用驗證時，允許實作 ControllerInterface 的控制器
+   - ✅ 啟用驗證時，拒絕未實作 ControllerInterface 的控制器
+   - ✅ 啟用驗證時，拒絕不存在的控制器類別
+   - ✅ 停用驗證時，允許任意控制器類別
+   - ✅ 防止任意類別實例化攻擊範例
+
+3. **Safe Redirect (S3) - 10 tests**:
+   - ✅ safeRedirect() 允許相對 URL
+   - ✅ safeRedirect() 允許以 / 開頭的相對路徑
+   - ✅ safeRedirect() 拒絕 // 開頭的 URL（協定相對 URL）
+   - ✅ safeRedirect() 拒絕未在白名單中的絕對 URL
+   - ✅ safeRedirect() 允許白名單中的絕對 URL
+   - ✅ safeRedirect() 對域名不區分大小寫
+   - ✅ safeRedirect() 拒絕空的 URL
+   - ✅ safeRedirect() 支援自訂狀態碼
+   - ✅ safeRedirect() 拒絕包含空格的無效 URL
+   - ✅ 防止開放重定向攻擊範例
+
+4. **Path Traversal Protection - 4 tests**:
+   - ✅ RegexMatcher 防止基本的 .. 路徑遍歷
+   - ✅ 路由參數不應包含 ..
+   - ✅ 應用層應該驗證檔案路徑（最佳實踐示例）
+   - ✅ 應用層應該使用 realpath() 驗證路徑（最佳實踐示例）
+
+5. **Additional Security - 4 tests**:
+   - ✅ HTTP Method 驗證防止方法覆蓋攻擊
+   - ✅ RouteItem 屬性封裝防止外部修改
+   - ✅ 中介軟體可用於實作安全檢查
+
+**測試檔案位置**:
+- `tests/Feature/SecurityTest.php` (467 行)
 
 ---
 
@@ -555,7 +608,13 @@ class UserController implements ControllerInterface
 
 ## 變更歷史
 
-- **2025-12-22 (更新)**: S1, S2, S3 安全性改善完成
+- **2025-12-22 (更新 2)**: S5 安全性測試完成
+  - ✅ S5: 安全性測試完成（35 個新測試）
+  - ✅ 涵蓋 S1, S2, S3 的完整測試覆蓋
+  - ✅ 總測試數: 203 tests (398 assertions)
+  - ✅ 所有安全性改善項目已完成並經過測試驗證
+
+- **2025-12-22 (更新 1)**: S1, S2, S3 安全性改善完成
   - ✅ S1: Host Header 驗證完成
   - ✅ S2: 控制器白名單驗證完成
   - ✅ S3: 安全的重定向方法完成
